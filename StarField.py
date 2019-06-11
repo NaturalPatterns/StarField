@@ -22,18 +22,19 @@ class ParticleBox:
     """
     def __init__(self,
                  bounds = [0, 1, 0, 1, 0, 200],
+                 # bounds = [-2, 2, -2, 2, 0, 200],
                  size = 10.,
-                 N = 1000,
+                 N = 10000,
                  V = 2.,
-                 theta = 0.):
+                 theta = np.pi/8):
         self.bounds = np.asarray(bounds, dtype=float)
         self.N = N
         self.time_elapsed = 0
         self.V = V
         self.size = size
         self.theta = theta
-        self.d_max = 20
-        self.d_min = .1
+        self.d_max = 10
+        self.d_min = .01
         self.init()
         self.project()
 
@@ -57,24 +58,22 @@ class ParticleBox:
         # HACK
         pos[:, :2] *= 2
         pos[:, :2] -= 1
+
+        # TODO: wrap obs coords in a novel box
         pos[:, 0] -= np.sin(self.theta) * self.V * self.time_elapsed
         pos[:, 2] -= np.cos(self.theta) * self.V * self.time_elapsed
-        # TODO: wrap all in a novel box
 
         d = (pos**2).sum(axis=1)**.5
         ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
-
-        #self.state = [X, Y, ms]
         N_visible = int(np.sum(ind_visible))
+
+        # self.state = [X, Y, size]
         self.state = np.ones((N_visible, 3))
         # print (self.time_elapsed, N_visible, self.state[:, 1].shape, pos[ind_visible, 1].shape, d[ind_visible].shape)#, d[ind_visible])
         self.state[:, 0] = pos[ind_visible, 0] / d[ind_visible]
         self.state[:, 1] = pos[ind_visible, 1] / d[ind_visible]
         self.state[:, 2] = self.size / d[ind_visible]
 
-        # ind_visible = (pos[:, 2] > 0) * (d<self.d_max)
-
-        # self.state = np.random.rand(100, 3)
         # for i in range(3):
         #     self.state[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
         #     self.state[:, i] -= self.bounds[2*i]
@@ -102,9 +101,6 @@ fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
                      xlim=(0, 1), ylim=(0, 1))
 
-# particles holds the locations of the particles
-# particles, = ax.plot([], [], 'bo', ms=6)
-
 # rect is the box edge
 rect = plt.Rectangle(box.bounds[::2],
                      box.bounds[1] - box.bounds[0],
@@ -112,31 +108,14 @@ rect = plt.Rectangle(box.bounds[::2],
                      ec='none', lw=2, fc='none')
 ax.add_patch(rect)
 
-# box.step(dt)
-# ax.scatter(box.state[:, 0], box.state[:, 1], marker='o', c='b', s=6)
-#
-# def init():
-#     """initialize animation"""
-#     global box, rect
-#     particles, = ax.scatter(box.state[:, 0], box.state[:, 1], 'bo', ms=6)
-#     rect.set_edgecolor('none')
-#     return particles, rect
-#
 def animate(i):
     """perform animation step"""
     global box, rect, dt, ax, fig
     box.step(dt)
     ax.cla()
 
-    # ms = [int(k* box.size * fig.dpi * 2 * box.size * fig.get_figwidth()
-    #          / np.diff(ax.get_xbound())[0]) for  k in box.state[:, 2]]
-    # ms = [int(k* box.size) for k in box.state[:, 2] ]
-    ms = 6
-
     # update pieces of the animation
     rect.set_edgecolor('k')
-    # print(len(ms), box.state.shape)
-    # print(box.state[:, 0].min(), box.state[:, 0].max())
     particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='o', c='b', s=box.state[:, 2])
     #particles.set_data(box.state[:, 0], box.state[:, 1])
     #particles.set_markersize(box.state[:, 2]*ms)
