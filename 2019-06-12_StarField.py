@@ -12,6 +12,9 @@ license: BSD
 Please feel free to use and modify this, but keep the above information. Thanks!
 """
 import sys
+BACKEND = 'webagg'
+BACKEND = 'MacOSX'
+BACKEND = 'GTK3Agg'
 BACKEND = 'tkagg'
 import matplotlib
 matplotlib.use(BACKEND)
@@ -26,7 +29,7 @@ class ParticleBox:
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
     def __init__(self,
-                 bounds = [-1, 1, -1, 1, 0, 10],
+                 bounds = [-3, 3, -3, 3, 0, 10],
                  # bounds = [-2, 2, -2, 2, 0, 200],
                  size = 10.,
                  N = 10000,
@@ -53,6 +56,7 @@ class ParticleBox:
         for i in range(3):
             self.pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
             self.pos[:, i] += self.bounds[2*i]
+            print('init', self.pos[:, i].min(), self.pos[:, i].max())
 
     def project(self):
         """
@@ -67,8 +71,12 @@ class ParticleBox:
         pos[:, 2] -= np.cos(self.theta) * self.V * self.time_elapsed
 
         # wrap in a novel box around obs coords
-        for i in range(3):
+        for i in range(2):
             pos[:, i] = self.bounds[2*i] + np.mod(pos[:, i], self.bounds[2*i + 1]-self.bounds[2*i])
+            print('posi', i, pos[:, 2].min(), pos[:, 2].max())
+        pos[:, 2] = np.mod(pos[:, 2], self.bounds[5])
+        print('posZ', pos[:, 2].min(), pos[:, 2].max())
+
 
         d = (pos**2).sum(axis=1)**.5
         ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
@@ -76,6 +84,7 @@ class ParticleBox:
 
         # self.state = [X, Y, size]
         self.state = np.ones((N_visible, 3))
+        # print (self.time_elapsed, N_visible, self.state[:, 1].shape, pos[ind_visible, 1].shape, d[ind_visible].shape)#, d[ind_visible])
         self.state[:, 0] = pos[ind_visible, 0] / d[ind_visible]
         self.state[:, 1] = pos[ind_visible, 1] / d[ind_visible]
         self.state[:, 2] = self.size / d[ind_visible]
@@ -124,12 +133,17 @@ def animate(i):
     # update pieces of the animation
     rect.set_edgecolor('k')
     particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='o', c='b', s=box.state[:, 2])
+    #particles.set_data(box.state[:, 0], box.state[:, 1])
+    #particles.set_markersize(box.state[:, 2]*ms)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     if box.time_elapsed > box.T: sys.exit()
     return particles, rect
 
-ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000/fps)
+print('frames =', int(box.T*fps))
+ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps),
+                              interval=1000/fps)#, blit=True)#, init_func=init)
+
 
 # save the animation as an mp4.  This requires ffmpeg or mencoder to be
 # installed.  The extra_args ensure that the x264 codec is used, so that
