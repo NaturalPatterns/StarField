@@ -29,7 +29,7 @@ class ParticleBox:
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
     def __init__(self,
-                 bounds = [0, 1, 0, 1, 0, 10],
+                 bounds = [-1, 1, -1, 1, 0, 10],
                  # bounds = [-2, 2, -2, 2, 0, 200],
                  size = 10.,
                  N = 10000,
@@ -55,7 +55,8 @@ class ParticleBox:
         self.pos = np.random.rand(self.N, 3)
         for i in range(3):
             self.pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
-            self.pos[:, i] -= self.bounds[2*i]
+            self.pos[:, i] += self.bounds[2*i]
+            print('init', self.pos[:, i].min(), self.pos[:, i].max())
 
     def project(self):
         """
@@ -68,9 +69,17 @@ class ParticleBox:
         pos[:, :2] *= 2
         pos[:, :2] -= 1
 
-        # TODO: wrap obs coords in a novel box
+        # center coordinates around obs coords
         pos[:, 0] -= np.sin(self.theta) * self.V * self.time_elapsed
         pos[:, 2] -= np.cos(self.theta) * self.V * self.time_elapsed
+
+        # wrap in a novel box around obs coords
+        for i in range(2):
+            pos[:, i] = self.bounds[2*i] + np.mod(pos[:, i], self.bounds[2*i + 1]-self.bounds[2*i])
+            print('posi', i, pos[:, 2].min(), pos[:, 2].max())
+        pos[:, 2] = np.mod(pos[:, 2], self.bounds[5])
+        print('posZ', pos[:, 2].min(), pos[:, 2].max())
+
 
         d = (pos**2).sum(axis=1)**.5
         ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
