@@ -91,7 +91,7 @@ class ParticleBox:
         # self.state = [X, Y, size]
         self.state = np.ones((N_visible, 7))
         for i in range(2):
-            self.state[:, i] = self.mag * pos[ind_visible, i] / pos[:, 2]
+            self.state[:, i] = self.mag * pos[ind_visible, i] / pos[ind_visible, 2]
             print(i, self.state[:, i].min(), self.state[:, i].max())
         self.state[:, 2] = self.size / d[ind_visible]
 
