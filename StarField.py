@@ -11,6 +11,14 @@ website: http://jakevdp.github.com
 license: BSD
 Please feel free to use and modify this, but keep the above information. Thanks!
 """
+import sys
+BACKEND = 'webagg'
+BACKEND = 'MacOSX'
+BACKEND = 'GTK3Agg'
+BACKEND = 'tkagg'
+import matplotlib
+matplotlib.use(BACKEND)
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -21,7 +29,7 @@ class ParticleBox:
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
     def __init__(self,
-                 bounds = [0, 1, 0, 1, 0, 200],
+                 bounds = [0, 1, 0, 1, 0, 10],
                  # bounds = [-2, 2, -2, 2, 0, 200],
                  size = 10.,
                  N = 10000,
@@ -35,6 +43,7 @@ class ParticleBox:
         self.theta = theta
         self.d_max = 10
         self.d_min = .01
+        self.T = 5
         self.init()
         self.project()
 
@@ -92,7 +101,8 @@ class ParticleBox:
 # set up initial state
 np.random.seed(42)
 box = ParticleBox()
-dt = 1. / 30 # 30fps
+fps = 30 # 30fps
+dt = 1. / fps # 30fps
 
 #------------------------------------------------------------
 # set up figure and animation
@@ -121,10 +131,10 @@ def animate(i):
     #particles.set_markersize(box.state[:, 2]*ms)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-
+    # if box.time_elapsed > box.T: sys.exit()
     return particles, rect
-
-ani = animation.FuncAnimation(fig, animate, frames=600,
+print(int(box.T*fps))
+ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps),
                               interval=10, blit=True)#, init_func=init)
 
 
