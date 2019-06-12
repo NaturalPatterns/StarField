@@ -143,8 +143,8 @@ ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000
 # the video can be embedded in html5.  You may need to adjust this for
 # your system: for more information, see
 # http://matplotlib.sourceforge.net/api/animation_api.html
-ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
-import os
-os.system('ffmpeg -i starfield.mp4  starfield.gif')
+# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
+# import os
+# os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
 plt.show()
