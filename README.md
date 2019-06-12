@@ -1,3 +1,3 @@
 # StarField
 
-![alt text](starfield.mp4)
+![alt text](starfield.gif)

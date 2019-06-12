@@ -163,7 +163,7 @@ ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000
 # your system: for more information, see
 # http://matplotlib.sourceforge.net/api/animation_api.html
 # help(ani.save)
-ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'))
+# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'))
 ani.save('starfield.gif', fps=fps, savefig_kwargs=dict( facecolor='black'))
 
 plt.show()
