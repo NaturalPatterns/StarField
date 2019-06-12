@@ -26,10 +26,10 @@ class ParticleBox:
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
     def __init__(self,
-                 bounds = [-1, 1, -1, 1, 0, 6],
-                 # bounds = [-2, 2, -2, 2, 0, 200],
+                 # bounds = [-1, 1, -1, 1, 0, 20],
+                 bounds = [-2, 2, -2, 2, 0, 20],
                  size = 30.,
-                 N = 1000,
+                 N = 10000,
                  V = 1.,
                  theta = np.pi/64):
         self.bounds = np.asarray(bounds, dtype=float)
@@ -57,7 +57,7 @@ class ParticleBox:
             self.pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
             self.pos[:, i] += self.bounds[2*i]
 
-        # Star colors http://www.isthe.com/chongo/tech/astro/HR-temp-mass-table-byhrclass.html
+        # Star colors http://www.isthe.com/chongo/tech/astro/HR-temp-mass-table-byhrclass.html http://www.vendian.org/mncharity/dir3/starcolor/
         O3 = np.array([144., 166., 255.])
         O3 /= 255.
         self.pos[:, 3:-1] = O3[None, :]
@@ -120,32 +120,38 @@ figsize = (15, 8)
 ratio = figsize[0]/figsize[1]
 #------------------------------------------------------------
 # set up figure and animation
-fig = plt.figure(figsize=figsize)
+# fig = plt.figure(figsize=figsize)
+# help(plt.subplots)
+fig, ax = plt.subplots(nrows=1, ncols=1, facecolor='black', subplot_kw=dict(autoscale_on=False))
+# help(fig.add_subplot)
 fig.set_facecolor('black')
 fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-ax = fig.add_subplot(111, autoscale_on=False, facecolor='red')
-ax.set_facecolor('black')
-
+# ax = fig.add_subplot(111, autoscale_on=False, facecolor='red')
+# ax.set_facecolor('black')
+# help(plt.Rectangle)
 def animate(i):
     """perform animation step"""
     global box, dt, ax, fig
     box.step(dt)
-    ax.set_facecolor('black')
+    # ax.set_facecolor('black')
     ax.cla()
-    # ax.set_facecolor('xkcd:salmon')
+    # rect = plt.Rectangle([-ratio, -1], 2*ratio, 2,
+    #                      lw=0, fc='black', zorder=2)
+    # ax.add_patch(rect)
+    ax.set_facecolor('xkcd:salmon')
     # ax.set_facecolor((1.0, 0.47, 0.42))
     # note: s is the marker size in points**2.
-    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2)
+    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
     # for particle in box.state:
     #     # TODO sort from zorder
     #     # print('particle',particle)
     #     ax.plot([particle[0]], particle[1], marker='*', c=particle[3:], ms=particle[2])
 
-    ax.set_facecolor('black')
+    # ax.set_facecolor('black')
     ax.set_xlim(-ratio, ratio)
     ax.set_ylim(-1, 1)
     ax.axis('off')
-    ax.set_facecolor('black')
+    # ax.set_facecolor('black')
     if box.time_elapsed > box.T: sys.exit()
     return ax
 
@@ -156,6 +162,7 @@ ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000
 # the video can be embedded in html5.  You may need to adjust this for
 # your system: for more information, see
 # http://matplotlib.sourceforge.net/api/animation_api.html
-# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'])
+# help(ani.save)
+ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'))
 
 plt.show()
