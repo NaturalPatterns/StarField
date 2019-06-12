@@ -131,11 +131,12 @@ def animate(i):
     #particles.set_markersize(box.state[:, 2]*ms)
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
-    # if box.time_elapsed > box.T: sys.exit()
+    if box.time_elapsed > box.T: sys.exit()
     return particles, rect
-print(int(box.T*fps))
+
+print('frames =', int(box.T*fps))
 ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps),
-                              interval=10, blit=True)#, init_func=init)
+                              interval=1000/fps)#, blit=True)#, init_func=init)
 
 
 # save the animation as an mp4.  This requires ffmpeg or mencoder to be
