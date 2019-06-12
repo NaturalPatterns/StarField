@@ -26,7 +26,8 @@ class ParticleBox:
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
     def __init__(self,
-                 bounds = [-4, 4, -4, 4, 0, 20],
+                 # bounds = [-1, 1, -1, 1, 0, 20],
+                 bounds = [-2, 2, -2, 2, 0, 20],
                  size = 30.,
                  N = 10000,
                  V = 1.,
@@ -83,22 +84,26 @@ class ParticleBox:
             pos[:, i] = self.bounds[2*i] + np.mod(pos[:, i], self.bounds[2*i + 1]-self.bounds[2*i])
 
         d = (pos**2).sum(axis=1)**.5
-        # TODO: order according to depth
-
         # ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
         ind_visible = (pos[:, 2] > self.d_min) * (d < self.d_max)
         N_visible = int(np.sum(ind_visible))
 
-        # self.state = [X, Y, size, R, G, B, alpha]
+        # self.state = [X, Y, size]
         self.state = np.ones((N_visible, 7))
         for i in range(2):
             self.state[:, i] = self.mag * pos[ind_visible, i] / pos[ind_visible, 2]
-
+            print(i, self.state[:, i].min(), self.state[:, i].max())
         self.state[:, 2] = self.size / d[ind_visible]
 
         # colors do not change
         self.state[:, 3:] = pos[ind_visible, 3:]
 
+        # TODO: larger transparency at larger distance => too fancy :-)
+        # self.state[:, 2] = self.size / d[ind_visible]
+
+        # for i in range(3):
+        #     self.state[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
+        #     self.state[:, i] -= self.bounds[2*i]
 
     def step(self, dt):
         """step once by dt seconds"""
@@ -115,21 +120,38 @@ figsize = (15, 8)
 ratio = figsize[0]/figsize[1]
 #------------------------------------------------------------
 # set up figure and animation
-fig, ax = plt.subplots(facecolor='black', subplot_kw=dict(autoscale_on=False))
+# fig = plt.figure(figsize=figsize)
+# help(plt.subplots)
+fig, ax = plt.subplots(nrows=1, ncols=1, facecolor='black', subplot_kw=dict(autoscale_on=False))
+# help(fig.add_subplot)
 fig.set_facecolor('black')
 fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-
+# ax = fig.add_subplot(111, autoscale_on=False, facecolor='red')
+# ax.set_facecolor('black')
+# help(plt.Rectangle)
 def animate(i):
     """perform animation step"""
     global box, dt, ax, fig
     box.step(dt)
+    # ax.set_facecolor('black')
     ax.cla()
+    # rect = plt.Rectangle([-ratio, -1], 2*ratio, 2,
+    #                      lw=0, fc='black', zorder=2)
+    # ax.add_patch(rect)
+    ax.set_facecolor('xkcd:salmon')
+    # ax.set_facecolor((1.0, 0.47, 0.42))
     # note: s is the marker size in points**2.
     particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
+    # for particle in box.state:
+    #     # TODO sort from zorder
+    #     # print('particle',particle)
+    #     ax.plot([particle[0]], particle[1], marker='*', c=particle[3:], ms=particle[2])
 
+    # ax.set_facecolor('black')
     ax.set_xlim(-ratio, ratio)
     ax.set_ylim(-1, 1)
     ax.axis('off')
+    # ax.set_facecolor('black')
     if box.time_elapsed > box.T: sys.exit()
     return ax
 
@@ -141,8 +163,8 @@ ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000
 # your system: for more information, see
 # http://matplotlib.sourceforge.net/api/animation_api.html
 # help(ani.save)
-# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
-# import os
-# os.system('ffmpeg -i starfield.mp4  starfield.gif')
+ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
+import os
+os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
 plt.show()
