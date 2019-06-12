@@ -1,3 +1,3 @@
 # StarField
 
-![alt text](starfield.gif)
+![alt text](https://raw.githubusercontent.com/NaturalPatterns/StarField/master/starfield.gif)
