@@ -83,7 +83,10 @@ class ParticleBox:
             pos[:, i] = self.bounds[2*i] + np.mod(pos[:, i], self.bounds[2*i + 1]-self.bounds[2*i])
 
         d = (pos**2).sum(axis=1)**.5
-        # TODO: order according to depth
+        # order according to depth
+        ind_sort = np.argsort(d)
+        pos = pos[ind_sort, :]
+        d = (pos**2).sum(axis=1)**.5
 
         # ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
         ind_visible = (pos[:, 2] > self.d_min) * (d < self.d_max)
@@ -140,9 +143,8 @@ ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000
 # the video can be embedded in html5.  You may need to adjust this for
 # your system: for more information, see
 # http://matplotlib.sourceforge.net/api/animation_api.html
-# help(ani.save)
-# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
-# import os
-# os.system('ffmpeg -i starfield.mp4  starfield.gif')
+ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
+import os
+os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
 plt.show()
