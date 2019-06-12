@@ -26,21 +26,22 @@ class ParticleBox:
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
     def __init__(self,
-                 bounds = [-1, 1, -1, 1, 0, 10],
+                 bounds = [-1, 1, -1, 1, 0, 6],
                  # bounds = [-2, 2, -2, 2, 0, 200],
-                 size = 10.,
-                 N = 10000,
-                 V = 2.,
-                 theta = np.pi/8):
+                 size = 30.,
+                 N = 1000,
+                 V = 1.,
+                 theta = np.pi/64):
         self.bounds = np.asarray(bounds, dtype=float)
         self.N = N
         self.time_elapsed = 0
         self.V = V
         self.size = size
         self.theta = theta
-        self.d_max = 10
-        self.d_min = .01
-        self.T = 5
+        self.d_max = 6.
+        self.d_min = 1.e-6
+        self.mag = 5.
+        self.T = 3.
         self.init()
         self.project()
 
@@ -48,11 +49,23 @@ class ParticleBox:
         """
         Generate a starfield in a box defined by bounds
 
+        X, Y, Z, R, G, B, alpha
         """
-        self.pos = np.random.rand(self.N, 3)
+
+        self.pos = np.random.rand(self.N, 7)
         for i in range(3):
             self.pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
             self.pos[:, i] += self.bounds[2*i]
+
+        # Star colors http://www.isthe.com/chongo/tech/astro/HR-temp-mass-table-byhrclass.html
+        O3 = np.array([144., 166., 255.])
+        O3 /= 255.
+        self.pos[:, 3:-1] = O3[None, :]
+        M4Ia = np.array([255., 185., 104.])
+        M4Ia /= 255.
+        self.pos[np.random.rand(self.N)>.5, 3:-1] = M4Ia[None, :]
+
+        self.pos[:, -1] = .8 + .2*self.pos[:, -1]
 
     def project(self):
         """
@@ -71,23 +84,26 @@ class ParticleBox:
             pos[:, i] = self.bounds[2*i] + np.mod(pos[:, i], self.bounds[2*i + 1]-self.bounds[2*i])
 
         d = (pos**2).sum(axis=1)**.5
-        ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
+        # ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
+        ind_visible = (pos[:, 2] > self.d_min) * (d < self.d_max)
         N_visible = int(np.sum(ind_visible))
 
         # self.state = [X, Y, size]
-        self.state = np.ones((N_visible, 3))
-        self.state[:, 0] = pos[ind_visible, 0] / d[ind_visible]
-        self.state[:, 1] = pos[ind_visible, 1] / d[ind_visible]
+        self.state = np.ones((N_visible, 7))
+        for i in range(2):
+            self.state[:, i] = self.mag * pos[ind_visible, i] / pos[:, 2]
+            print(i, self.state[:, i].min(), self.state[:, i].max())
         self.state[:, 2] = self.size / d[ind_visible]
+
+        # colors do not change
+        self.state[:, 3:] = pos[ind_visible, 3:]
+
+        # TODO: larger transparency at larger distance => too fancy :-)
+        # self.state[:, 2] = self.size / d[ind_visible]
 
         # for i in range(3):
         #     self.state[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
         #     self.state[:, i] -= self.bounds[2*i]
-
-        # HACK
-        self.state /= 2
-        self.state += .5
-
 
     def step(self, dt):
         """step once by dt seconds"""
@@ -100,34 +116,38 @@ np.random.seed(42)
 box = ParticleBox()
 fps = 30 # 30fps
 dt = 1. / fps # 30fps
-
+figsize = (15, 8)
+ratio = figsize[0]/figsize[1]
 #------------------------------------------------------------
 # set up figure and animation
-fig = plt.figure()
+fig = plt.figure(figsize=figsize)
+fig.set_facecolor('black')
 fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-ax = fig.add_subplot(111, aspect='equal', autoscale_on=False,
-                     xlim=(0, 1), ylim=(0, 1))
-
-# rect is the box edge
-rect = plt.Rectangle(box.bounds[::2],
-                     box.bounds[1] - box.bounds[0],
-                     box.bounds[3] - box.bounds[2],
-                     ec='none', lw=2, fc='none')
-ax.add_patch(rect)
+ax = fig.add_subplot(111, autoscale_on=False, facecolor='red')
+ax.set_facecolor('black')
 
 def animate(i):
     """perform animation step"""
-    global box, rect, dt, ax, fig
+    global box, dt, ax, fig
     box.step(dt)
+    ax.set_facecolor('black')
     ax.cla()
+    # ax.set_facecolor('xkcd:salmon')
+    # ax.set_facecolor((1.0, 0.47, 0.42))
+    # note: s is the marker size in points**2.
+    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2)
+    # for particle in box.state:
+    #     # TODO sort from zorder
+    #     # print('particle',particle)
+    #     ax.plot([particle[0]], particle[1], marker='*', c=particle[3:], ms=particle[2])
 
-    # update pieces of the animation
-    rect.set_edgecolor('k')
-    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='o', c='b', s=box.state[:, 2])
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    ax.set_facecolor('black')
+    ax.set_xlim(-ratio, ratio)
+    ax.set_ylim(-1, 1)
+    ax.axis('off')
+    ax.set_facecolor('black')
     if box.time_elapsed > box.T: sys.exit()
-    return particles, rect
+    return ax
 
 ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000/fps)
 
@@ -136,6 +156,6 @@ ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000
 # the video can be embedded in html5.  You may need to adjust this for
 # your system: for more information, see
 # http://matplotlib.sourceforge.net/api/animation_api.html
-#ani.save('starfield.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'])
 
 plt.show()
