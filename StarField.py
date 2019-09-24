@@ -154,7 +154,7 @@ def animate(i):
 
 ani = animation.FuncAnimation(fig, animate, frames=int(opt.T*opt.fps), interval=1000/opt.fps)
 if not opt.fname is None:
-    ani.save(opt.fname + '.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
+    ani.save(opt.fname + '.mp4', fps=opt.fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
     # import os
     # os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
