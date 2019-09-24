@@ -23,6 +23,8 @@ parser.add_argument("--seed", type=int, default=51, help="seed for the RNG")
 parser.add_argument("--fps", type=int, default=25, help="frames per second")
 parser.add_argument("--N", type=int, default=10000, help="number of particles")
 parser.add_argument("--size", type=float, default=10, help="size of symbols")
+parser.add_argument("--radius", type=float, default=10, help="radius of center")
+parser.add_argument("--fix_size", type=float, default=10, help="size of fixation symbol")
 parser.add_argument("--V", type=float, default=1, help="speed")
 parser.add_argument("--mag", type=float, default=5, help="magnification")
 parser.add_argument("--bound_width", type=float, default=4, help="speed")
@@ -145,7 +147,10 @@ def animate(i):
     ax.cla()
     # note: s is the marker size in points**2.
     particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
-
+    if box.opt.radius > 0:
+        circle = plt.Circle((0,0), box.opt.radius, color='k')
+        ax.add_artist(circle)
+    fixation = ax.scatter([0], [0], marker='=', c='white', s=box.opt.fix_size, zorder=1)
     ax.set_xlim(-ratio, ratio)
     ax.set_ylim(-1, 1)
     ax.axis('off')
