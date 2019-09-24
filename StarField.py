@@ -31,6 +31,7 @@ parser.add_argument("--T", type=float, default=3., help="duration")
 parser.add_argument("--d_min", type=float, default=1.e-6, help="min distance")
 parser.add_argument("--d_max", type=float, default=6., help="max distance")
 parser.add_argument("--theta", type=float, default=np.pi/64, help="angle of view wrt displacement")
+parser.add_argument("--fname", type=str, default=None, help="filename to save the animation to")
 parser.add_argument("--verbose", type=bool, default=True, help="Displays more verbose output.")
 
 opt = parser.parse_args()
@@ -152,14 +153,9 @@ def animate(i):
     return ax
 
 ani = animation.FuncAnimation(fig, animate, frames=int(opt.T*opt.fps), interval=1000/opt.fps)
-
-# save the animation as an mp4.  This requires ffmpeg or mencoder to be
-# installed.  The extra_args ensure that the x264 codec is used, so that
-# the video can be embedded in html5.  You may need to adjust this for
-# your system: for more information, see
-# http://matplotlib.sourceforge.net/api/animation_api.html
-# ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
-# import os
-# os.system('ffmpeg -i starfield.mp4  starfield.gif')
+if not opt.fname is None:
+    ani.save(opt.fname + '.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
+    # import os
+    # os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
 plt.show()
