@@ -44,7 +44,10 @@ if opt.verbose:
 #------------------------------------------------------------
 
 import sys
-BACKEND = 'Qt5Agg'
+if False:
+    BACKEND = 'Qt5Agg'
+else:
+    BACKEND = 'tkagg'
 import matplotlib
 matplotlib.use(BACKEND)
 
@@ -95,7 +98,7 @@ class ParticleBox:
         pos = self.pos.copy()
 
         # center coordinates around obs coords
-        x = self.V * self.time_elapsed + 1/2 *self.opt.A *self.time_elapsed ** 2
+        x = self.opt.V * self.time_elapsed + 1/2 *self.opt.A * self.time_elapsed ** 2
         pos[:, 0] -= np.sin(self.opt.theta) * x
         pos[:, 2] -= np.cos(self.opt.theta) * x
 
