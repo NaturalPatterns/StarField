@@ -11,43 +11,12 @@ website: http://jakevdp.github.com
 license: BSD
 Please feel free to use and modify this, but keep the above information. Thanks!
 """
-
-#------------------------------------------------------------
-import os
-import numpy as np
-
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--seed", type=int, default=51, help="seed for the RNG")
-parser.add_argument("--fps", type=int, default=25, help="frames per second")
-parser.add_argument("--N", type=int, default=10000, help="number of particles")
-parser.add_argument("--size", type=float, default=10, help="size of symbols")
-parser.add_argument("--radius", type=float, default=.2, help="radius of center blind spot")
-parser.add_argument("--fix_size", type=float, default=40, help="size of fixation symbol")
-parser.add_argument("--V", type=float, default=1, help="speed")
-parser.add_argument("--A", type=float, default=0, help="acceleration")
-parser.add_argument("--mag", type=float, default=5, help="magnification")
-parser.add_argument("--bound_width", type=float, default=4, help="speed")
-parser.add_argument("--bound_depth", type=float, default=20, help="speed")
-parser.add_argument("--T", type=float, default=3., help="duration")
-parser.add_argument("--d_min", type=float, default=1.e-6, help="min distance")
-parser.add_argument("--d_max", type=float, default=6., help="max distance")
-parser.add_argument("--theta", type=float, default=np.pi/64, help="angle of view wrt displacement")
-parser.add_argument("--fname", type=str, default=None, help="filename to save the animation to")
-parser.add_argument("--verbose", type=bool, default=True, help="Displays more verbose output.")
-
-opt = parser.parse_args()
-
-if opt.verbose:
-    print(opt)
-#------------------------------------------------------------
-
 import sys
 BACKEND = 'Qt5Agg'
 import matplotlib
 matplotlib.use(BACKEND)
 
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -56,11 +25,26 @@ class ParticleBox:
 
     bounds is the size of the box: [xmin, xmax, ymin, ymax]
     """
-    def __init__(self, opt):
-        bounds = [-opt.bound_width, opt.bound_width, -opt.bound_width, opt.bound_width, 0, opt.bound_depth]
+    def __init__(self,
+                 bounds = [-4, 4, -4, 4, 0, 20],
+                 size = 30.,
+                 N = 10000,
+                 V = 0.,
+                 A = 1.,
+
+                 theta = np.pi/12, #change the angle 64 : direct
+                 ): 
         self.bounds = np.asarray(bounds, dtype=float)
-        self.opt = opt
-        self.time_elapsed = 0.
+        self.N = N
+        self.time_elapsed = 0
+        self.V = V
+        self.A = A
+        self.size = size
+        self.theta = theta
+        self.d_max = 6.
+        self.d_min = 1.e-6
+        self.mag = 5.
+        self.T = 3.
         self.init()
         self.project()
 
@@ -71,7 +55,7 @@ class ParticleBox:
         X, Y, Z, R, G, B, alpha
         """
 
-        self.pos = np.random.rand(self.opt.N, 7)
+        self.pos = np.random.rand(self.N, 7)
         for i in range(3):
             self.pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
             self.pos[:, i] += self.bounds[2*i]
@@ -82,7 +66,7 @@ class ParticleBox:
         self.pos[:, 3:-1] = O3[None, :]
         M4Ia = np.array([255., 185., 104.])
         M4Ia /= 255.
-        self.pos[np.random.rand(self.opt.N)>.5, 3:-1] = M4Ia[None, :]
+        self.pos[np.random.rand(self.N)>.5, 3:-1] = M4Ia[None, :]
 
         self.pos[:, -1] = .8 + .2*self.pos[:, -1]
 
@@ -95,9 +79,9 @@ class ParticleBox:
         pos = self.pos.copy()
 
         # center coordinates around obs coords
-        x = self.V * self.time_elapsed + 1/2 *self.opt.A *self.time_elapsed ** 2
-        pos[:, 0] -= np.sin(self.opt.theta) * x
-        pos[:, 2] -= np.cos(self.opt.theta) * x
+        x = self.V * self.time_elapsed + 1/2 *self.A *self.time_elapsed ** 2
+        pos[:, 0] -= np.sin(self.theta) * x 
+        pos[:, 2] -= np.cos(self.theta) * x
 
         # wrap in a novel box around obs coords
         for i in range(3):
@@ -110,15 +94,15 @@ class ParticleBox:
         d = (pos**2).sum(axis=1)**.5
 
         # ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
-        ind_visible = (pos[:, 2] > self.opt.d_min) * (d < self.opt.d_max)
+        ind_visible = (pos[:, 2] > self.d_min) * (d < self.d_max)
         N_visible = int(np.sum(ind_visible))
 
         # self.state = [X, Y, size, R, G, B, alpha]
         self.state = np.ones((N_visible, 7))
         for i in range(2):
-            self.state[:, i] = self.opt.mag * pos[ind_visible, i] / pos[ind_visible, 2]
+            self.state[:, i] = self.mag * pos[ind_visible, i] / pos[ind_visible, 2]
 
-        self.state[:, 2] = self.opt.size / d[ind_visible]
+        self.state[:, 2] = self.size / d[ind_visible]
 
         # colors do not change
         self.state[:, 3:] = pos[ind_visible, 3:]
@@ -129,11 +113,12 @@ class ParticleBox:
         self.time_elapsed += dt
         self.project()
 
-
+#------------------------------------------------------------
 # set up initial state
-np.random.seed(opt.seed)
-box = ParticleBox(opt)
-dt = 1. / opt.fps # 30fps
+np.random.seed(42)
+box = ParticleBox()
+fps = 30 # 30fps
+dt = 1. / fps # 30fps
 figsize = (15, 8)
 ratio = figsize[0]/figsize[1]
 #------------------------------------------------------------
@@ -149,20 +134,29 @@ def animate(i):
     ax.cla()
     # note: s is the marker size in points**2.
     particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
-    if box.opt.radius > 0:
-        circle = plt.Circle((0,0), box.opt.radius, color='k')
-        ax.add_artist(circle)
-    fixation = ax.scatter([0], [0], marker='+', c='white', s=box.opt.fix_size, zorder=2)
+
     ax.set_xlim(-ratio, ratio)
     ax.set_ylim(-1, 1)
     ax.axis('off')
-    if box.time_elapsed > opt.T: sys.exit()
+    if box.time_elapsed > box.T: sys.exit()
     return ax
 
-ani = animation.FuncAnimation(fig, animate, frames=int(opt.T*opt.fps), interval=1000/opt.fps)
-if not opt.fname is None:
-    ani.save(opt.fname + '.mp4', fps=opt.fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
-    # import os
-    # os.system('ffmpeg -i starfield.mp4  starfield.gif')
+ani = animation.FuncAnimation(fig, animate, frames=int(box.T*fps), interval=1000/fps)
+
+# save the animation as an mp4.  This requires ffmpeg or mencoder to be
+# installed.  The extra_args ensure that the x264 codec is used, so that
+# the video can be embedded in html5.  You may need to adjust this for
+# your system: for more information, see
+# http://matplotlib.sourceforge.net/api/animation_api.html
+
+
+#ani.save('starfield.mp4', fps=fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
+
+
+#ani.save('starfield', fps=fps, savefig_kwargs=dict( facecolor='black'), dpi=300)
+
+
+# import os
+# os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
 plt.show()
