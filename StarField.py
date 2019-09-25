@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--seed", type=int, default=51, help="seed for the RNG")
 parser.add_argument("--fps", type=int, default=25, help="frames per second")
 parser.add_argument("--N", type=int, default=10000, help="number of particles")
+parser.add_argument("--noise", type=float, default=.03, help="diffusion aprameter of the brownian motion of particles")
 parser.add_argument("--size", type=float, default=10, help="size of symbols")
 parser.add_argument("--radius", type=float, default=.2, help="radius of center blind spot")
 parser.add_argument("--fix_size", type=float, default=40, help="size of fixation symbol")
@@ -89,11 +90,14 @@ class ParticleBox:
 
         self.pos[:, -1] = .8 + .2*self.pos[:, -1]
 
-    def project(self):
+    def project(self, dt=0.):
         """
         Project positions on the screen
 
         """
+        # add noise to the trajectory
+        self.pos[:, :3] += np.sqrt(dt) * self.opt.noise * np.random.randn(self.opt.N, 3)
+
         # update positions compared to observer
         pos = self.pos.copy()
 
@@ -130,7 +134,7 @@ class ParticleBox:
     def step(self, dt):
         """step once by dt seconds"""
         self.time_elapsed += dt
-        self.project()
+        self.project(dt)
 
 
 # set up initial state
