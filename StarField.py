@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--seed", type=int, default=51, help="seed for the RNG")
 parser.add_argument("--fps", type=int, default=25, help="frames per second")
 parser.add_argument("--N", type=int, default=10000, help="number of particles")
-parser.add_argument("--noise", type=float, default=.03, help="diffusion aprameter of the brownian motion of particles")
+parser.add_argument("--noise", type=float, default=.005, help="diffusion aprameter of the brownian motion of particles")
 parser.add_argument("--size", type=float, default=10, help="size of symbols")
 parser.add_argument("--radius", type=float, default=.2, help="radius of center blind spot")
 parser.add_argument("--fix_size", type=float, default=40, help="size of fixation symbol")
@@ -32,6 +32,7 @@ parser.add_argument("--mag", type=float, default=5, help="magnification")
 parser.add_argument("--bound_width", type=float, default=4, help="speed")
 parser.add_argument("--bound_depth", type=float, default=20, help="speed")
 parser.add_argument("--T", type=float, default=3., help="duration")
+parser.add_argument("--tau", type=float, default=.5, help="mean kill duration")
 parser.add_argument("--d_min", type=float, default=1.e-6, help="min distance")
 parser.add_argument("--d_max", type=float, default=6., help="max distance")
 parser.add_argument("--theta", type=float, default=np.pi/64, help="angle of view wrt displacement")
@@ -68,6 +69,14 @@ class ParticleBox:
         self.init()
         self.project()
 
+
+    def random_positions(self):
+        pos = np.random.rand(self.opt.N, 3)
+        for i in range(3):
+            pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
+            pos[:, i] += self.bounds[2*i]
+        return pos
+
     def init(self):
         """
         Generate a starfield in a box defined by bounds
@@ -76,9 +85,7 @@ class ParticleBox:
         """
 
         self.pos = np.random.rand(self.opt.N, 7)
-        for i in range(3):
-            self.pos[:, i] *= (self.bounds[2*i+1] - self.bounds[2*i])
-            self.pos[:, i] += self.bounds[2*i]
+        self.pos[:, :3] = self.random_positions()
 
         # Star colors http://www.isthe.com/chongo/tech/astro/HR-temp-mass-table-byhrclass.html http://www.vendian.org/mncharity/dir3/starcolor/
         O3 = np.array([144., 166., 255.])
@@ -97,6 +104,16 @@ class ParticleBox:
         """
         # add noise to the trajectory
         self.pos[:, :3] += np.sqrt(dt) * self.opt.noise * np.random.randn(self.opt.N, 3)
+
+        # kill some particles and place them again at random in the box
+        if dt >0. :
+            ind_kill = np.random.rand(self.opt.N) < 1 - np.exp( - dt / self.opt.tau)
+            # print( dt, 1 - np.exp( - dt / self.opt.tau), (ind_kill).sum())
+            ind_kill = ind_kill[:, None] * np.array([True]*3)
+            self.pos[:, :3] = np.where(ind_kill, # condition
+                                       self.random_positions(), # kill if True
+                                       self.pos[:, :3] # keep if False
+                                       )
 
         # update positions compared to observer
         pos = self.pos.copy()
