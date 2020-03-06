@@ -20,6 +20,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", type=int, default=51, help="seed for the RNG")
+parser.add_argument("--dpi", type=int, default=300, help="dots per inch")
 parser.add_argument("--fps", type=int, default=25, help="frames per second")
 parser.add_argument("--N", type=int, default=10000, help="number of particles")
 parser.add_argument("--noise", type=float, default=.005, help="diffusion aprameter of the brownian motion of particles")
@@ -36,7 +37,11 @@ parser.add_argument("--tau", type=float, default=.5, help="mean kill duration")
 parser.add_argument("--d_min", type=float, default=1.e-6, help="min distance")
 parser.add_argument("--d_max", type=float, default=6., help="max distance")
 parser.add_argument("--theta", type=float, default=np.pi/64, help="angle of view wrt displacement")
+parser.add_argument("--marker", type=str, default='*', help="marker to use")
+parser.add_argument("--facecolor", type=str, default='black', help="facecolor to use")
 parser.add_argument("--fname", type=str, default=None, help="filename to save the animation to")
+parser.add_argument("--vext", type=str, default='mp4', help="video MIME type")
+parser.add_argument("--backend", type=str, default='Agg', help="pyplot backend")
 parser.add_argument("--verbose", type=bool, default=True, help="Displays more verbose output.")
 
 opt = parser.parse_args()
@@ -51,7 +56,7 @@ if False:
 else:
     BACKEND = 'tkagg'
 import matplotlib
-matplotlib.use(BACKEND)
+matplotlib.use(opt.backend)
 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -172,7 +177,7 @@ def animate(i):
     box.step(dt)
     ax.cla()
     # note: s is the marker size in points**2.
-    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker='*', c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
+    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker=opt.marker, c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
     if box.opt.radius > 0:
         circle = plt.Circle((0,0), box.opt.radius, color='k')
         ax.add_artist(circle)
@@ -183,10 +188,22 @@ def animate(i):
     if box.time_elapsed > opt.T: sys.exit()
     return ax
 
-ani = animation.FuncAnimation(fig, animate, frames=int(opt.T*opt.fps), interval=1000/opt.fps)
-if not opt.fname is None:
-    ani.save(opt.fname + '.mp4', fps=opt.fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict( facecolor='black'), dpi=300)
-    # import os
-    # os.system('ffmpeg -i starfield.mp4  starfield.gif')
+if opt.vext == 'mp4':
+    ani = animation.FuncAnimation(fig, animate, frames=int(opt.T*opt.fps), interval=1000/opt.fps)
+    if not opt.fname is None:
+        ani.save(opt.fname + '.mp4', fps=opt.fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict(facecolor='black'), dpi=opt.dpi)
+        # import os
+        # os.system('ffmpeg -i starfield.mp4  starfield.gif')
+
+elif opt.vext == 'png':
+    import pathlib
+    root = pathlib.Path(opt.fname)
+    pathlib.Path(root).mkdir(parents=True, exist_ok=True)
+
+    for i_frame in range(int(opt.T*opt.fps)):
+        print('i_frame =', i_frame)
+        ax = animate(i_frame)
+        fname = root.joinpath(f'frame_{i_frame:06d}.png')
+        fig.savefig(fname, dpi=opt.dpi, facecolor=opt.facecolor)
 
 plt.show()
