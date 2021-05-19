@@ -42,7 +42,8 @@ parser.add_argument("--facecolor", type=str, default='black', help="facecolor to
 parser.add_argument("--fname", type=str, default=None, help="filename to save the animation to")
 parser.add_argument("--vext", type=str, default='mp4', help="video MIME type")
 parser.add_argument("--backend", type=str, default='Agg', help="pyplot backend")
-parser.add_argument("--verbose", type=bool, default=True, help="Displays more verbose output.")
+parser.add_argument("--verbose", default=False, action='store_true', help="Displays more verbose output.")
+parser.add_argument("--realistic", default=False, action='store_true', help="Displays a realistic looking output.")
 
 opt = parser.parse_args()
 
@@ -132,13 +133,15 @@ class ParticleBox:
         for i in range(3):
             pos[:, i] = self.bounds[2*i] + np.mod(pos[:, i], self.bounds[2*i + 1]-self.bounds[2*i])
 
+        # euclidian distance
         d = (pos**2).sum(axis=1)**.5
         # order according to depth
         ind_sort = np.argsort(d)
         pos = pos[ind_sort, :]
+        # recompute euclidian distance
         d = (pos**2).sum(axis=1)**.5
 
-        # ind_visible = (pos[:, 2] > 0) * (self.d_min<d) * (d<self.d_max)
+        # filters those which are too close or too far
         ind_visible = (pos[:, 2] > self.opt.d_min) * (d < self.opt.d_max)
         N_visible = int(np.sum(ind_visible))
 
@@ -146,7 +149,7 @@ class ParticleBox:
         self.state = np.ones((N_visible, 7))
         for i in range(2):
             self.state[:, i] = self.opt.mag * pos[ind_visible, i] / pos[ind_visible, 2]
-
+        # size
         self.state[:, 2] = self.opt.size / d[ind_visible]
 
         # colors do not change
@@ -159,15 +162,106 @@ class ParticleBox:
         self.project(dt)
 
 
+
+
+
 # set up initial state
 np.random.seed(opt.seed)
 box = ParticleBox(opt)
 dt = 1. / opt.fps # 30fps
-figsize = (15, 8)
+figsize = (16, 16)
 ratio = figsize[0]/figsize[1]
+
+if opt.realistic:
+    # https://laurentperrinet.github.io/sciblog/posts/2021-03-27-density-of-stars-on-the-surface-of-the-sky.html
+
+    N_X, N_Y = figsize[0], figsize[1]
+    N_X, N_Y = int(N_X*opt.dpi), int(N_Y*opt.dpi)
+ 
+    def star(N_X, N_Y, x_pos, y_pos, size_airy, theta, size_airy_ecc, intensity,
+                    gamma, model):
+        """
+        Define the image of a star as a kernel:
+
+        - x_pos, y_pos : position of the center of the blob
+        - size_airy_min : axis of minimal variance
+        - size_airy_max : axis of maximal variance
+        - theta : angle of both angle relative to horizontal ( along Y axis)
+        - intensity : relative brightness
+
+        The profile is well approximated by :
+        - an Airy disk: https://en.wikipedia.org/wiki/Airy_disk
+        - a gaussian https://en.wikipedia.org/wiki/Airy_disk#Approximation_using_a_Gaussian_profile
+        - a MOFFAT function https://en.wikipedia.org/wiki/Moffat_distribution
+
+        """
+        #X, Y = fx.squeeze(), fy.squeeze()
+        X, Y = np.meshgrid(np.arange(N_X), np.arange(N_Y))
+        X, Y = X.T, Y.T
+
+        # https://en.wikipedia.org/wiki/Gaussian_function#Meaning_of_parameters_for_the_general_equation
+        a = np.cos(theta)**2/(2*size_airy**2) + np.sin(theta)**2/(2*size_airy**2*size_airy_ecc**2)
+        b = np.sin(2*theta) * (-1/(4*size_airy**2) + 1/(4*size_airy**2*size_airy_ecc**2))
+        c = np.sin(theta)**2/(2*size_airy**2) + np.cos(theta)**2/(2*size_airy**2*size_airy_ecc**2)
+        R2 = a * (X-x_pos)**2 + 2 * b * (X-x_pos)*(Y-y_pos) + c * (Y-y_pos)**2
+
+        if model=='airy':
+            from scipy.special import jv #(v, z)
+            R = np.sqrt(R2)
+            image = (jv(1, R) / (R+1e-6))**2
+            image /= image.max()
+        elif model=='moffat':
+            # see https://en.wikipedia.org/wiki/Astronomical_seeing
+            beta = .85
+            image = (1 + R2)**(-beta)
+        else:
+            image = np.exp( - R2 )
+
+        #image = sensor_gamma(image, gamma)
+
+        image *= intensity
+
+        return image
+
+
+    def random_cloud(envelope, events):
+        (N_X, N_Y) = envelope.shape
+        F_events = np.fft.fftn(events)
+        #F_events = np.fft.fftshift(F_events)
+
+        Fz = F_events * envelope
+        # de-centering the spectrum
+        #Fz = np.fft.ifftshift(Fz)
+        #Fz[0, 0, 0] = 0. # removing the DC component
+        z = np.fft.ifftn(Fz).real
+        return z
+    
+    def star_env(N_X, N_Y):
+        x_star = star(N_X, N_Y, x_pos=N_X//2, y_pos=N_Y//2, 
+                      size_airy=1.5, theta=0, size_airy_ecc=1., intensity=.2,
+                    gamma=1., model='moffat')
+        F_star = np.fft.fftn(x_star)
+        #F_star = np.fft.fftshift(F_star)
+        return F_star
+    F_star = star_env(N_X, N_Y)    
+
+    def model(envelope, events, saturation=1., verbose=False):
+        if verbose: print('envelope.shape = ', envelope.shape)
+        if verbose: print('events.shape = ', events.shape)
+        N_X, N_Y = envelope.shape[0], envelope.shape[1]
+        x = random_cloud(envelope, events=events)
+        #x = x.reshape((N_X, N_Y))
+        if verbose: print(f'{x.min()=:.3f}, {np.median(x)=:.3f}, {x.mean()=:.3f}, {x.max()=:.3f}')
+        if saturation < np.inf:
+            x = np.minimum(x, saturation)
+            if verbose: print(f'{x.min()=:.3f}, {np.median(x)=:.3f}, {x.mean()=:.3f}, {x.max()=:.3f}')
+        if verbose: print('x.shape=', x.shape)
+        return x
+
 #------------------------------------------------------------
 # set up figure and animation
-fig, ax = plt.subplots(facecolor='black', subplot_kw=dict(autoscale_on=False))
+fig, ax = plt.subplots(facecolor='black', #subplot_kw=dict(autoscale_on=False), 
+                       figsize=figsize)
 fig.set_facecolor('black')
 fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
@@ -176,14 +270,59 @@ def animate(i):
     global box, dt, ax, fig
     box.step(dt)
     ax.cla()
-    # note: s is the marker size in points**2.
-    particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker=opt.marker, c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
-    if box.opt.radius > 0:
-        circle = plt.Circle((0,0), box.opt.radius, color='k')
-        ax.add_artist(circle)
-    fixation = ax.scatter([0], [0], marker='+', c='white', s=box.opt.fix_size, zorder=2)
-    ax.set_xlim(-ratio, ratio)
-    ax.set_ylim(-1, 1)
+    if opt.realistic:
+        # https://laurentperrinet.github.io/sciblog/posts/2021-03-27-density-of-stars-on-the-surface-of-the-sky.html
+        a_x = box.state[:, 0].copy()
+        a_y = box.state[:, 1].copy()
+        #print('0>', a_x.mean(), a_y.mean(), a_x.std(), a_y.std())
+        #print('1>', a_x.min(), a_y.min(), a_x.max(), a_y.max())
+        #a_x /= opt.mag * ratio * 2  # in (-1, 1)
+        #a_y /= opt.mag * ratio * 2  # in (-1, 1)
+        #print('1>', a_x.mean(), a_y.mean(), a_x.std(), a_y.std())
+        #print('2>', a_x.min(), a_y.min(), a_x.max(), a_y.max())
+        a_x += .5   # in (0, 1)
+        a_y += .5   # in (0, 1)
+        #print('2>', a_x.mean(), a_y.mean(), a_x.std(), a_y.std())
+        #print('2>', a_x.min(), a_y.min(), a_x.max(), a_y.max())
+        a_x *= N_X/2 # np.max((N_X, N_Y))/2  # in (0, N)
+        a_y *= N_X/2 #np.max((N_X, N_Y))/2  # in (0, N)
+        #a_x += N_X/2 # np.max((N_X, N_Y))/2  # in (0, N)
+        #a_y += N_X/2 #np.max((N_X, N_Y))/2  # in (0, N)
+        #print('3>', a_x.min(), a_y.min(), a_x.max(), a_y.max())
+        a_x = a_x.astype(int)
+        a_y = a_y.astype(int)
+        #print('4>', a_x.min(), a_y.min(), a_x.max(), a_y.max())
+        valid_idx = (a_x < N_X) * (a_x >= 0) * (a_y < N_Y) * (a_y >= 0)
+        #print('5>', valid_idx.sum())
+        #print(a_x, mask)
+        # size = 1 / d
+        # lum = 1 / d^2 = size^2 
+        lum = box.state[:, 2]**2 / opt.size 
+        
+        events = np.zeros((N_X, N_Y))
+        events[a_x[valid_idx], a_y[valid_idx]] = lum[valid_idx]
+        #for x, y, l in zip(a_x, a_y, lum):
+        #    if (x < N_X) and (x >= 0) and (y < N_Y) and (y >= 0):
+        #        events[int(x), int(y)] = l
+            
+        saturation = 1
+        x = model(F_star, events, saturation=saturation, verbose=False)
+        #x = np.roll(np.roll(x, N_Y//2, 1), N_X//2, 0)
+        x = np.roll(np.roll(x, -N_Y//2, 1), -N_X//2, 0) # HACK
+        #x = np.roll(np.roll(x, N_Y, 1), N_X, 0)
+        ax.imshow(x.T, cmap=plt.gray(), vmin=x.min(), vmax=1);
+        #ax.set_xlim(0, N_X) # bounds of the figure
+        #ax.set_ylim(0, N_Y)
+    else:
+        # note: s is the marker size in points**2.
+        particles = ax.scatter(box.state[:, 0], box.state[:, 1], marker=opt.marker, c=box.state[:, 3:], s=box.state[:, 2]**2, zorder=1)
+        if box.opt.radius > 0:
+            circle = plt.Circle((0,0), box.opt.radius, color='k')
+            ax.add_artist(circle)
+        fixation = ax.scatter([0], [0], marker='+', c='white', s=box.opt.fix_size, zorder=2)
+    
+        ax.set_xlim(-ratio, ratio) # bounds of the figure
+        ax.set_ylim(-1, 1)
     ax.axis('off')
     if box.time_elapsed > opt.T: sys.exit()
     return ax

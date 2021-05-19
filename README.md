@@ -3,6 +3,19 @@
 ![alt text](https://raw.githubusercontent.com/NaturalPatterns/StarField/master/starfield.gif)
 
 
+## a nice-looking movie
+
+``
+python3 StarField.py --fname starfield --vext mp4 --fps 32 --dpi 100 --theta 0 --size 20 --mag 3 --T 10 --noise 0 --verbose --realistic --N 100000
+``
+
+## a simple gif
+
+``
+python3 StarField.py --fname starfield --vext gif --fps 32  
+``
+
+
 ## a folder with PNGs
 
 ``
