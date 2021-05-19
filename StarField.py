@@ -260,9 +260,9 @@ if opt.realistic:
 
 #------------------------------------------------------------
 # set up figure and animation
-fig, ax = plt.subplots(facecolor='black', #subplot_kw=dict(autoscale_on=False), 
+fig, ax = plt.subplots(facecolor=opt.facecolor, #subplot_kw=dict(autoscale_on=False), 
                        figsize=figsize)
-fig.set_facecolor('black')
+fig.set_facecolor(opt.facecolor)
 fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
 
 def animate(i):
@@ -330,7 +330,7 @@ def animate(i):
 if opt.vext == 'mp4':
     ani = animation.FuncAnimation(fig, animate, frames=int(opt.T*opt.fps), interval=1000/opt.fps)
     if not opt.fname is None:
-        ani.save(opt.fname + '.mp4', fps=opt.fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict(facecolor='black'), dpi=opt.dpi)
+        ani.save(opt.fname + '.mp4', fps=opt.fps, extra_args=['-vcodec', 'libx264'], savefig_kwargs=dict(facecolor=opt.facecolor), dpi=opt.dpi)
         # import os
         # os.system('ffmpeg -i starfield.mp4  starfield.gif')
 
@@ -339,8 +339,8 @@ elif opt.vext == 'png':
     root = pathlib.Path(opt.fname)
     pathlib.Path(root).mkdir(parents=True, exist_ok=True)
 
-    for i_frame in range(int(opt.T*opt.fps)):
-        print('i_frame =', i_frame)
+    for i_frame in range(N_frame := int(opt.T*opt.fps)):
+        print('i_frame =', i_frame, '/', N_frame)
         ax = animate(i_frame)
         fname = root.joinpath(f'frame_{i_frame:06d}.png')
         fig.savefig(fname, dpi=opt.dpi, facecolor=opt.facecolor)
