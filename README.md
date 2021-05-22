@@ -9,6 +9,8 @@
 python3 StarField.py --fname starfield --vext mp4 --fps 32 --dpi 100 --theta 0 --size 20 --mag 3 --T 10 --noise 0 --verbose --realistic --N 100000
 ``
 
+ * if you are looking for something more realistic, see for instance https://www.across-universe.com/
+
 ## a simple gif
 
 ``
